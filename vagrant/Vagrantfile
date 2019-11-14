@@ -1,17 +1,14 @@
 # -*- mode: ruby -*-
 # vi:set ft=ruby sw=2 ts=2 sts=2:
-
-# Custom modification for another numbers of Worker Nodes ! Some change in ruby code
-
 # Define the number of master and worker nodes
-# If this number is changed then setup-hosts.sh file will update automaticaly.
+# Modify by motousr77@gmail.com > DEV code
+# If this numbers is changed then setup-hosts.sh file will be update automaticaly (thx for my script)
 NUM_MASTER_NODE = 1
 NUM_WORKER_NODE = 2
 
 IP_NW = "192.168.6."
 MASTER_IP_START = 10
 NODE_IP_START = 20
-# LB_IP_START = 30
 
 # create some output file:
 VAR_FILE_MASTERS = "gen/masters"
@@ -40,10 +37,8 @@ EOS
   f1_var = File.new(VAR_FILE_MASTERS, 'w')
   f2_var = File.new(VAR_FILE_WORKERS, 'w')
   f = File.new(FILE_NAME_HOSTS, 'w')
-  # write to file* start data
-  f.write(str_1)
-  # create the mention of the master nodes
-  n1 = MASTER_IP_START + 1
+  f.write(str_1) # write to file* start data
+  n1 = MASTER_IP_START + 1 # create the mention of the master nodes
   (1..NUM_MASTER_NODE).each do |i|
     f1_var.write("#{IP_NW}#{n1}\n") # var masters
     f.write("#{IP_NW}#{n1}\t")
@@ -86,28 +81,6 @@ EOS
       end
   end
 
-  # Provision Load Balancer Node
- #  config.vm.define "loadbalancer" do |node|
- #    node.vm.provider "virtualbox" do |vb|
- #        vb.name = "kubernetes-ha-lb"
- #        vb.memory = 512
- #        vb.cpus = 1
- #    end
- #    node.vm.hostname = "loadbalancer"
- #    node.vm.network :private_network, ip: IP_NW + "#{LB_IP_START}"
-	# node.vm.network "forwarded_port", guest: 22, host: 2730
-
- #    node.vm.provision "setup-hosts", :type => "shell", :path => FILE_NAME_HOSTS do |s|
- #      s.args = ["enp0s8"]
- #    end
-
- #    node.vm.provision "setup-dns", type: "shell", :path => "ubuntu/update-dns.sh"
-
- #  end
-
-  # Provision Worker Nodes
-  # Custom edition: for more then 2 worker nodes -> creating /etc/hosts - file for every nodes !!!
-
   (1..NUM_WORKER_NODE).each do |i|
     config.vm.define "worker-#{i}" do |node|
         node.vm.provider "virtualbox" do |vb|
@@ -129,10 +102,5 @@ EOS
 
     end
   end
-  # small check vagrant entrypoint Vagrantfile
-  # system("ls")
-  # puts 'done.'
   # Vagrant run Vagrantfiel EVERY time after vagrant command executed (up, status)
 end
-
-# We need edition on every stage of node creating !!!

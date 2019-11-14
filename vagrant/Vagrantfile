@@ -1,0 +1,138 @@
+# -*- mode: ruby -*-
+# vi:set ft=ruby sw=2 ts=2 sts=2:
+
+# Custom modification for another numbers of Worker Nodes ! Some change in ruby code
+
+# Define the number of master and worker nodes
+# If this number is changed then setup-hosts.sh file will update automaticaly.
+NUM_MASTER_NODE = 1
+NUM_WORKER_NODE = 2
+
+IP_NW = "192.168.6."
+MASTER_IP_START = 10
+NODE_IP_START = 20
+# LB_IP_START = 30
+
+# create some output file:
+VAR_FILE_MASTERS = "gen/masters"
+VAR_FILE_WORKERS = "gen/workers"
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/bionic64"
+  config.vm.box_check_update = false
+  
+  # BEGIN >>> setup-host.sh file creator:
+  FILE_NAME_HOSTS = "ubuntu/vagrant/setup-hosts.sh"                           
+  # create the multiline string variable:
+  str_1 = <<-EOS
+#!/bin/bash
+set -e
+IFNAME=$1
+ADDRESS="$(ip -4 addr show $IFNAME | grep "inet" | head -1 |awk '{print $2}' | cut -d/ -f1)"
+sed -e "s/^.*${HOSTNAME}.*/${ADDRESS} ${HOSTNAME} ${HOSTNAME}.local/" -i /etc/hosts
+
+# remove ubuntu-bionic entry
+sed -e '/^.*ubuntu-bionic.*/d' -i /etc/hosts
+
+# Update /etc/hosts about other hosts
+cat >> /etc/hosts <<EOF
+EOS
+  f1_var = File.new(VAR_FILE_MASTERS, 'w')
+  f2_var = File.new(VAR_FILE_WORKERS, 'w')
+  f = File.new(FILE_NAME_HOSTS, 'w')
+  # write to file* start data
+  f.write(str_1)
+  # create the mention of the master nodes
+  n1 = MASTER_IP_START + 1
+  (1..NUM_MASTER_NODE).each do |i|
+    f1_var.write("#{IP_NW}#{n1}\n") # var masters
+    f.write("#{IP_NW}#{n1}\t")
+    f.write("master-#{i}\n")
+    n1 += 1
+  end
+  # create the mention of the worker nodes
+  n2 = NODE_IP_START + 1
+  (1..NUM_WORKER_NODE).each do |i|
+    f2_var.write("#{IP_NW}#{n2}\n") # workers
+    f.write("#{IP_NW}#{n2}\t")
+    f.write("worker-#{i}\n")
+    n2 += 1
+  end
+  f.write("EOF\n")
+  f1_var.write("\n")
+  f.close # close resource!
+  f1_var.close
+  # END. <<< setup-host.sh file creator.
+
+  # Provision Master Nodes
+  (1..NUM_MASTER_NODE).each do |i|
+      config.vm.define "master-#{i}" do |node|
+        # Name shown in the GUI
+        node.vm.provider "virtualbox" do |vb|
+            vb.name = "kubernetes-ha-master-#{i}"
+            vb.memory = 2048
+            vb.cpus = 2
+        end
+        node.vm.hostname = "master-#{i}"
+        node.vm.network :private_network, ip: IP_NW + "#{MASTER_IP_START + i}"
+        node.vm.network "forwarded_port", guest: 22, host: "#{2710 + i}"
+
+        node.vm.provision "setup-hosts", :type => "shell", :path => FILE_NAME_HOSTS do |s|
+          s.args = ["enp0s8"]
+        end
+
+        node.vm.provision "setup-dns", type: "shell", :path => "ubuntu/update-dns.sh"
+
+      end
+  end
+
+  # Provision Load Balancer Node
+ #  config.vm.define "loadbalancer" do |node|
+ #    node.vm.provider "virtualbox" do |vb|
+ #        vb.name = "kubernetes-ha-lb"
+ #        vb.memory = 512
+ #        vb.cpus = 1
+ #    end
+ #    node.vm.hostname = "loadbalancer"
+ #    node.vm.network :private_network, ip: IP_NW + "#{LB_IP_START}"
+	# node.vm.network "forwarded_port", guest: 22, host: 2730
+
+ #    node.vm.provision "setup-hosts", :type => "shell", :path => FILE_NAME_HOSTS do |s|
+ #      s.args = ["enp0s8"]
+ #    end
+
+ #    node.vm.provision "setup-dns", type: "shell", :path => "ubuntu/update-dns.sh"
+
+ #  end
+
+  # Provision Worker Nodes
+  # Custom edition: for more then 2 worker nodes -> creating /etc/hosts - file for every nodes !!!
+
+  (1..NUM_WORKER_NODE).each do |i|
+    config.vm.define "worker-#{i}" do |node|
+        node.vm.provider "virtualbox" do |vb|
+            vb.name = "kubernetes-ha-worker-#{i}"
+            vb.memory = 512
+            vb.cpus = 1
+        end
+        node.vm.hostname = "worker-#{i}"
+        node.vm.network :private_network, ip: IP_NW + "#{NODE_IP_START + i}"
+		node.vm.network "forwarded_port", guest: 22, host: "#{2720 + i}"
+
+        node.vm.provision "setup-hosts", :type => "shell", :path => FILE_NAME_HOSTS do |s|
+          s.args = ["enp0s8"]
+        end
+
+        node.vm.provision "setup-dns", type: "shell", :path => "ubuntu/update-dns.sh"
+        node.vm.provision "install-docker", type: "shell", :path => "ubuntu/install-docker.sh"
+        node.vm.provision "allow-bridge-nf-traffic", :type => "shell", :path => "ubuntu/allow-bridge-nf-traffic.sh"
+
+    end
+  end
+  # small check vagrant entrypoint Vagrantfile
+  # system("ls")
+  # puts 'done.'
+  # Vagrant run Vagrantfiel EVERY time after vagrant command executed (up, status)
+end
+
+# We need edition on every stage of node creating !!!

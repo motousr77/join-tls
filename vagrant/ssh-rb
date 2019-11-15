@@ -1,0 +1,3 @@
+#!/bin/sh
+cd gen
+./do-ssh.rb $1 $2

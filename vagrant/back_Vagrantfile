@@ -61,7 +61,6 @@ EOS
   inf = File.new('gen/nodes-info.rb', 'w')
   # inf.write("#{IP_NW}#{MASTER_IP_START + 1}\n")
   inf.write("ENV['master_ip'] = '#{IP_NW}#{MASTER_IP_START + 1}'\n")
-  inf.write("ENV['master_path_key'] = '../.vagrant/machines/master-1/virtualbox/private_key'")
   inf.close
   # END. <<< setup-host.sh file creator.
 
